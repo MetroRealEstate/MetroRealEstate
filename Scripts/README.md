@@ -35,6 +35,6 @@ This project is licensed under the [MIT License](LICENSE).
 
 ## Acknowledgments
 
-- The `nameparser` library: [https://pypi.org/project/nameparser/](https://pypi.org/project/nameparser/)
+
 
 
