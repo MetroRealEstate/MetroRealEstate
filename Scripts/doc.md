@@ -97,9 +97,4 @@ In summary, the choice to store data in a custom _Excel_ file and a _MongoDB_ da
 
 
 
-lexnlp
-reconocimiento de entidades nombradas NER
-
-
-
 
