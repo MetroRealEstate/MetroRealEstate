@@ -6,9 +6,9 @@ from tkinter.ttk import Progressbar
 import time
 import os
 import pdfplumber
-#from functions.excluded_phrases import excluded_phrases
-from saveintemplate import save_in_template
-from db import save_data_to_mongodb
+from functions.excluded_phrases import excluded_phrases
+from functions.saveintemplate import save_in_template
+from functions.db import save_data_to_mongodb
 
 # Global variables
 pdf_path = ''
@@ -156,14 +156,15 @@ def search_data():
         else:
             application_status = '-'
 
-        # Search for applicant names
-
+       # Search for applicant names
         applicant_regex = r"Applicant: ([A-Z][a-z]+ [A-Z][a-z]+)"
         applicant_matches = re.findall(applicant_regex, text, re.I | re.M)
         if not applicant_matches:
             applicant_regex = r"\b[A-Z][a-z]+ [A-Z][a-z]+\b(?:\sDevelopment Group)?"
             applicant_matches = re.findall(applicant_regex, text)
-        applicants = applicant_matches or ['-']
+        unique_applicants = list(set(applicant_matches))
+        filtered_applicants = [applicant for applicant in unique_applicants if applicant not in excluded_phrases]
+        applicants = filtered_applicants or ['-']
 
         # Search for building size with the format if not found in the previous format
 
