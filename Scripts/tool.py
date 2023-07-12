@@ -6,7 +6,7 @@ from tkinter.ttk import Progressbar
 import time
 import os
 import pdfplumber
-from excluded_phrases import excluded_phrases
+#from functions.excluded_phrases import excluded_phrases
 from saveintemplate import save_in_template
 from db import save_data_to_mongodb
 
@@ -17,7 +17,7 @@ start_time = 0
 
 # Function to search for the first date and project name in a PDF file and save them in Excel
 
-def buscar_datos_en_pdf():
+def search_data():
     global pdf_path, pdf_name, start_time
 
     # Open the PDF file
@@ -39,7 +39,7 @@ def buscar_datos_en_pdf():
         sheet['J1'] = 'Existing Used'
         sheet['K1'] = 'Propose Zoning'
         sheet['L1'] = 'Current Application Status'
-        sheet['M1'] = 'comments'
+        sheet['M1'] = 'Comments'
 
         # Variables to store the results
         meeting_type = ''
@@ -82,20 +82,22 @@ def buscar_datos_en_pdf():
         if "Moreno Valley" in text:
             project_name_regex = r'PEN\d{2}-\d{4}'
         elif "City of Corona" in text or "Corona City" in text:
-                project_name_regex = r'(?:PPM\d{4}-\d{4}|PM\s\d+|PP\d{4}-\d{4})'
+            project_name_regex = r'(?:PPM\d{4}-\d{4}|PM\s\d+|PP\d{4}-\d{4})|GPA\d{4}-\d{4}|CUP\d{4}-\d{4}'
         elif "City of Lake Elsinore" in text:
-                project_name_regex = r'\d{4}-\d{2}'
+            project_name_regex = r'\d{4}-\d{2}'
+        elif "City of Hemet" in text:
+            project_name_regex = r'\d{1,2}-\d{3}'
         else:
-            project_name_regex = r''  # Define an empty regex if no condition is met
+            project_name_regex = r''
 
         project_name_matches = re.findall(project_name_regex, text)
-        project_names = project_name_matches if project_name_matches else ['-']
+        project_names = list(set(project_name_matches)) if project_name_matches else ['-']
 
         # Search for parcel information in the format "{###-###-###}"
 
         parcel_number_regex = r"\d\d\d-\d\d\d-\s?\d\d\d"
         parcel_number_matches = re.findall(parcel_number_regex, text)
-        parcel_numbers = parcel_number_matches
+        parcel_numbers = list(set(parcel_number_matches)) if parcel_number_matches else []
 
         # Search for all locations that match coordinates or any name in any format representing a physical place
 
@@ -142,7 +144,7 @@ def buscar_datos_en_pdf():
                 if re.search(r'\b[A-Za-z\s]+\b', location):
                     locations.append(location)
                     
-        project_locations = locations if locations else ['-']
+        project_locations = list(set(locations)) if locations else ['-']
 
         # Search for the application status ("Approved" or "Approval") in any format or variation
 
@@ -156,9 +158,12 @@ def buscar_datos_en_pdf():
 
         # Search for applicant names
 
-        applicant_regex = r'\b[A-Z][a-z]+ [A-Z][a-z]+\b(?:\sDevelopment Group)?'
-        applicant_matches = re.findall(applicant_regex, text)
-        applicants = list({match for match in applicant_matches if match not in excluded_phrases}) or ['-']
+        applicant_regex = r"Applicant: ([A-Z][a-z]+ [A-Z][a-z]+)"
+        applicant_matches = re.findall(applicant_regex, text, re.I | re.M)
+        if not applicant_matches:
+            applicant_regex = r"\b[A-Z][a-z]+ [A-Z][a-z]+\b(?:\sDevelopment Group)?"
+            applicant_matches = re.findall(applicant_regex, text)
+        applicants = applicant_matches or ['-']
 
         # Search for building size with the format if not found in the previous format
 
@@ -177,12 +182,16 @@ def buscar_datos_en_pdf():
 
         moreno_proposal_regex = r'(?:Proposal|Proposed Project|Proposal: |Proposed Project: )\b([^.:]*\d+(?:\.\d+)?[^.]*)\.'
         corona_proposal_regex = r'PUBLIC HEARING\s*-\s*([^*]+?)\bApplicant:'
+        elsinore_proposal_regex = r'\bID#\s\d{2}-\d{3}\b\s*((?:(?!(?:Attachments\b|.*\bcoronavirus\b)).)*)'
+
         proposal_matches = re.findall(moreno_proposal_regex, text, re.S)
         if not proposal_matches:
             proposal_matches = re.findall(corona_proposal_regex, text, re.S)
+        if not proposal_matches:
+            proposal_matches = [match.group(1).strip() for match in re.finditer(elsinore_proposal_regex, text, re.S | re.IGNORECASE) if 'coronavirus' not in match.group(1).lower()]
 
-        captura = proposal_matches[0].strip() if proposal_matches else '-'
-        proposals = proposal_matches if proposal_matches else '-'
+        captura = proposal_matches[0] if proposal_matches else '-'
+        proposals = proposal_matches if proposal_matches else ['-']
 
         # Search for existing use
 
@@ -261,8 +270,8 @@ def buscar_datos_en_pdf():
         })
 
         # Display completion message and total execution time
-        lbl_mensaje.config(
-            text=f'La búsqueda ha finalizado. Tiempo total: {time.time() - start_time:.2f} segundos')
+        lbl_messagge.config(
+            text=f'The search has been finished. Total time: {time.time() - start_time:.2f} segundos')
 
         # Open the Excel file after saving
         os.startfile(excel_path)
@@ -283,11 +292,11 @@ def buscar_datos_en_pdf():
         print("Results saved to Excel file.")
 
     # Enable the search button after completing the task
-    btn_buscar.config(state='normal')
+    btn_search.config(state='normal')
 
 # Function to select a PDF file
 
-def seleccionar_pdf():
+def select_pdf():
     global pdf_path, pdf_name, start_time
 
     # Open the file selection dialog
@@ -297,30 +306,30 @@ def seleccionar_pdf():
     pdf_name = os.path.splitext(os.path.basename(pdf_path))[0]
 
     # Disable the search button while the task is running
-    btn_buscar.config(state='disabled')
+    btn_search.config(state='disabled')
 
     # Display start search message
-    lbl_mensaje.config(text='Buscando datos en el archivo PDF...')
+    lbl_messagge.config(text='Searching data in the file...')
 
     # Save the start time of execution
     start_time = time.time()
 
     # Call the function to search for data in the PDF file
-    buscar_datos_en_pdf()
+    search_data()
 
 
 # GUI configuration
 root = Tk()
-root.title('Buscador de datos en PDF')
+root.title('Data Tool')
 root.geometry('300x150')
 
-lbl_instrucciones = Label(root, text='Seleccione un archivo PDF:')
+lbl_instrucciones = Label(root, text='Select a PDF file:')
 lbl_instrucciones.pack(pady=10)
 
-btn_buscar = Button(root, text='Buscar', command=seleccionar_pdf)
-btn_buscar.pack()
+btn_search = Button(root, text='Search', command=select_pdf)
+btn_search.pack()
 
-lbl_mensaje = Label(root, text='')
-lbl_mensaje.pack(pady=10)
+lbl_messagge = Label(root, text='')
+lbl_messagge.pack(pady=10)
 
 root.mainloop()
