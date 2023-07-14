@@ -8,7 +8,6 @@ import os
 import pdfplumber
 from functions.excluded_phrases import excluded_phrases
 from functions.saveintemplate import save_in_template
-from functions.db import save_data_to_mongodb
 
 # Global variables
 pdf_path = ''
@@ -274,21 +273,6 @@ def search_data():
         save_in_template(data, 'COPIA PLANTILLA.xlsx')
 
         # Call the function to save the data in MongoDB
-
-        save_data_to_mongodb({
-            'meeting_type': meeting_type,
-            'meeting_date': meeting_date,
-            'project_names': project_names,
-            'applicants': applicants,
-            'project_locations': project_locations,
-            'parcel_numbers': parcel_numbers,
-            'building_sizes': building_sizes,
-            'land_sizes': land_sizes,
-            'proposals': proposals,
-            'existing_used': existing_used,
-            'propose_zoning': propose_zoning,
-            'application_status': application_status
-        })
 
         # Display completion message and total execution time
         lbl_messagge.config(

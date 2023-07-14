@@ -8,7 +8,6 @@ import os
 import pdfplumber
 from functions.excluded_phrases import excluded_phrases
 from functions.saveintemplate import save_in_template
-from functions.db import save_data_to_mongodb
 
 # Global variables
 pdf_path = ''
@@ -87,6 +86,8 @@ def search_data():
             project_name_regex = r'\d{4}-\d{2}'
         elif "City of Hemet" in text:
             project_name_regex = r'\d{1,2}-\d{3}'
+        elif "Santa Fe Spring" in text:
+            project_name_regex = r'\d{5}'
         else:
             project_name_regex = r''
 
@@ -105,7 +106,13 @@ def search_data():
                 tract_number = match.group(1)
                 parcel_numbers = ['Tract No. ' + tract_number]
             else:
-                parcel_numbers = []
+                # Use \d{4}-\d{3}-\d{3} pattern
+                parcel_number_regex = r"APN:([\s\S]*?)\d{4}-\d{3}-?\s?\d{3}"
+                parcel_number_matches = re.findall(parcel_number_regex, text, re.M)
+                if parcel_number_matches:
+                    parcel_numbers = list(set(parcel_number_matches))
+                else:
+                    parcel_numbers = []
         else:
             parcel_numbers = list(set(parcel_number_matches))
 
@@ -266,21 +273,6 @@ def search_data():
         save_in_template(data, 'COPIA PLANTILLA.xlsx')
 
         # Call the function to save the data in MongoDB
-
-        save_data_to_mongodb({
-            'meeting_type': meeting_type,
-            'meeting_date': meeting_date,
-            'project_names': project_names,
-            'applicants': applicants,
-            'project_locations': project_locations,
-            'parcel_numbers': parcel_numbers,
-            'building_sizes': building_sizes,
-            'land_sizes': land_sizes,
-            'proposals': proposals,
-            'existing_used': existing_used,
-            'propose_zoning': propose_zoning,
-            'application_status': application_status
-        })
 
         # Display completion message and total execution time
         lbl_messagge.config(
