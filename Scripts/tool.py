@@ -97,7 +97,17 @@ def search_data():
 
         parcel_number_regex = r"\d\d\d-\d\d\d-\s?\d\d\d"
         parcel_number_matches = re.findall(parcel_number_regex, text)
-        parcel_numbers = list(set(parcel_number_matches)) if parcel_number_matches else []
+
+        if not parcel_number_matches:
+            pattern = r"Tract(?:\s+Map)?\s+(\d+)"
+            match = re.search(pattern, text, re.I)
+            if match:
+                tract_number = match.group(1)
+                parcel_numbers = ['Tract No. ' + tract_number]
+            else:
+                parcel_numbers = []
+        else:
+            parcel_numbers = list(set(parcel_number_matches))
 
         # Search for all locations that match coordinates or any name in any format representing a physical place
 
@@ -170,29 +180,31 @@ def search_data():
 
         building_size_regex = r'\(?(\d{1,3}(?:,\d{3})*(?:\.\d+)?)\)?\s*(SQUARES?\s*FEETS?|sq.\s*ft|SF|SQUARES?\s*FooTS?)'
         building_size_match = re.findall(building_size_regex, text, re.I)
-        building_sizes = [
-            size[0].strip('()') + ' SF' for size in building_size_match] if building_size_match else ['-']
+        building_sizes = list(set([size[0].strip('()') + ' SF' for size in building_size_match])) if building_size_match else ['-']
 
         # Search for land sizes in acres with the formats "2.6 acre", "33.57-acre", or "18.49- acre site"
 
         land_size_regex = r'(\d+(?:\.\d+)?)\s*(?:-)?\s*acre\s*(?:site)?'
         land_size_matches = re.findall(land_size_regex, text, re.I)
-        land_sizes = [size + ' acre' for size in land_size_matches] if land_size_matches else ['-']
+        land_sizes = list(set([size + ' acre' for size in land_size_matches])) if land_size_matches else ['-']
 
         # Search for proposals after "Proposal" and save the text until the first period
 
         moreno_proposal_regex = r'(?:Proposal|Proposed Project|Proposal: |Proposed Project: )\b([^.:]*\d+(?:\.\d+)?[^.]*)\.'
         corona_proposal_regex = r'PUBLIC HEARING\s*-\s*([^*]+?)\bApplicant:'
         elsinore_proposal_regex = r'\bID#\s\d{2}-\d{3}\b\s*((?:(?!(?:Attachments\b|.*\bcoronavirus\b)).)*)'
+        hemet_proposal_regex = r'PROJECT SUMMARY:\s*(.*?\.)'
 
-        proposal_matches = re.findall(moreno_proposal_regex, text, re.S)
-        if not proposal_matches:
-            proposal_matches = re.findall(corona_proposal_regex, text, re.S)
-        if not proposal_matches:
-            proposal_matches = [match.group(1).strip() for match in re.finditer(elsinore_proposal_regex, text, re.S | re.IGNORECASE) if 'coronavirus' not in match.group(1).lower()]
+        proposals = re.findall(moreno_proposal_regex, text, re.S)
+        if not proposals:
+            proposals = re.findall(corona_proposal_regex, text, re.S)
+        if not proposals:
+            proposals = [match.group(1).strip() for match in re.finditer(elsinore_proposal_regex, text, re.S | re.IGNORECASE) if 'coronavirus' not in match.group(1).lower()]
+        if not proposals:
+            hemet_matches = re.findall(hemet_proposal_regex, text, re.S | re.M)
+            proposals = [match.strip() for match in hemet_matches]
 
-        captura = proposal_matches[0] if proposal_matches else '-'
-        proposals = proposal_matches if proposal_matches else ['-']
+        captura = proposals[0] if proposals else '-'
 
         # Search for existing use
 
