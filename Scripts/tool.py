@@ -81,13 +81,17 @@ def search_data():
         if "Moreno Valley" in text:
             project_name_regex = r'PEN\d{2}-\d{4}'
         elif "City of Corona" in text or "Corona City" in text:
-            project_name_regex = r'(?:PPM\d{4}-\d{4}|PM\s\d+|PP\d{4}-\d{4})|GPA\d{4}-\d{4}|CUP\d{4}-\d{4}'
+            project_name_regex = r'(?:PPM\d{4}-\d{4}|PM\s\d+|PC\s\d{2}-\d{4}|PP\d{4}-\d{4})|GPA\d{4}-\d{4}|CUP\d{4}-\d{4}'
         elif "City of Lake Elsinore" in text:
             project_name_regex = r'\d{4}-\d{2}'
         elif "City of Hemet" in text:
             project_name_regex = r'\d{1,2}-\d{3}'
         elif "Santa Fe Spring" in text:
-            project_name_regex = r'\d{5}'
+            project_name_regex = r'No\. \d{6} | \d{3}'
+        elif "Malibu" in text:
+            project_name_regex = r'No\. \d{2}-\d{3}(?:-\d{1,4})?'
+        elif "San Gabriel" in text:
+            project_name_regex = r'\d{2}-\d{3}(?:-\d{1,4})?'
         else:
             project_name_regex = r''
 
@@ -122,10 +126,12 @@ def search_data():
         location_matches = re.findall(location_regex, text, re.I | re.M)
         site_regex = r'Project Site:\s*(.*?)\s*[\n\r]'
         site_matches = re.findall(site_regex, text, re.I | re.M)
-        located_regex = r'located at\s*([\w\d\s.-]+)'
+        located_regex = r'located\s*at\s*([\w\d\s.-]+)'
         located_matches = re.findall(located_regex, text, re.I | re.M)
         located_on_regex = r'located on\s*([\w\d\s.-]+)'
         located_on_matches = re.findall(located_on_regex, text, re.I | re.M)
+        located_in_regex = r'located in\s*([\w\d\s.-]+)'
+        located_in_matches = re.findall(located_in_regex, text, re.I | re.M)
         locations = []
         for location in location_matches:
             if re.search(r'(\d+(\.\d+)?),\s*(\d+(\.\d+)?)', location):
@@ -160,13 +166,20 @@ def search_data():
             else:
                 if re.search(r'\b[A-Za-z\s]+\b', location):
                     locations.append(location)
+        
+        for location in located_in_matches:
+                    if re.search(r'(\d+(\.\d+)?),\s*(\d+(\.\d+)?)', location):
+                        locations.append(location)
+                    else:
+                        if re.search(r'\b[A-Za-z\s]+\b', location):
+                            locations.append(location)
                     
         project_locations = list(set(locations)) if locations else ['-']
 
         # Search for the application status ("Approved" or "Approval") in any format or variation
 
-        application_status_regex = r'\b(APPROVED|APPROVAL)\b'
-        application_status_match = re.search(application_status_regex, text)
+        application_status_regex = r'\b(APPROVED|APPROVAL|APPROVE)\b'
+        application_status_match = re.search(application_status_regex, text, re.I)
 
         if application_status_match:
             application_status = "APPROVED"
@@ -178,6 +191,9 @@ def search_data():
         applicant_matches = re.findall(applicant_regex, text, re.I | re.M)
         if not applicant_matches:
             applicant_regex = r"\b[A-Z][a-z]+ [A-Z][a-z]+\b(?:\sDevelopment Group)?"
+            applicant_matches = re.findall(applicant_regex, text)
+        if not applicant_matches:
+            applicant_regex = r"Owner:\s*([^.,\n]+)"
             applicant_matches = re.findall(applicant_regex, text)
         unique_applicants = list(set(applicant_matches))
         filtered_applicants = [applicant for applicant in unique_applicants if applicant not in excluded_phrases]
@@ -201,6 +217,9 @@ def search_data():
         corona_proposal_regex = r'PUBLIC HEARING\s*-\s*([^*]+?)\bApplicant:'
         elsinore_proposal_regex = r'\bID#\s\d{2}-\d{3}\b\s*((?:(?!(?:Attachments\b|.*\bcoronavirus\b)).)*)'
         hemet_proposal_regex = r'PROJECT SUMMARY:\s*(.*?\.)'
+        stfe_proposal_regex = r'a request\b([^.]*)\.'
+        malibu_proposal_regex = r'Recommended Action\b([^.]*)\.'
+        gabriel_proposal_regex = r'The proposed project\s.([^\.]+\.[^\.]+\.[^\.]+\.[^\.]+(?:\.[^\.]+)?)'
 
         proposals = re.findall(moreno_proposal_regex, text, re.S)
         if not proposals:
@@ -210,6 +229,15 @@ def search_data():
         if not proposals:
             hemet_matches = re.findall(hemet_proposal_regex, text, re.S | re.M)
             proposals = [match.strip() for match in hemet_matches]
+        if not proposals:
+            stfe_matches = re.findall(stfe_proposal_regex, text, re.S | re.I | re.M | re.U)
+            proposals = [match.strip() for match in stfe_matches]
+        if not proposals:
+            stfe_matches = re.findall(malibu_proposal_regex, text, re.S | re.I | re.M)
+            proposals = [match.strip() for match in stfe_matches]
+        if 'San Gabriel' in text:
+            gabriel_matches = re.findall(gabriel_proposal_regex, text, re.I | re.M)
+            proposals = [match.strip() for match in gabriel_matches]
 
         captura = proposals[0] if proposals else '-'
 
