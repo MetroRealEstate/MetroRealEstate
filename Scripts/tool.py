@@ -78,24 +78,26 @@ def search_data():
 
         # Search for project names that match the regex based on the document content
 
-        if "Moreno Valley" in text:
-            project_name_regex = r'PEN\d{2}-\d{4}'
-        elif "City of Corona" in text or "Corona City" in text:
-            project_name_regex = r'(?:PPM\d{4}-\d{4}|PM\s\d+|PC\s\d{2}-\d{4}|PP\d{4}-\d{4})|GPA\d{4}-\d{4}|CUP\d{4}-\d{4}'
-        elif "City of Lake Elsinore" in text:
-            project_name_regex = r'\d{4}-\d{2}'
-        elif "City of Hemet" in text:
-            project_name_regex = r'\d{1,2}-\d{3}'
-        elif "Santa Fe Spring" in text:
-            project_name_regex = r'No\. \d{6} | \d{3}'
-        elif "Malibu" in text:
-            project_name_regex = r'No\. \d{2}-\d{3}(?:-\d{1,4})?'
-        elif "San Gabriel" in text:
-            project_name_regex = r'\d{2}-\d{3}(?:-\d{1,4})?'
-        else:
-            project_name_regex = r''
+        # Expresiones regulares existentes
+        project_name_regexes = [
+            r'PEN\d{2}-\d{4}',
+            r'(?:PPM\d{4}-\d{4}|PM\s\d+|PC\s\d{2}-\d{4}|PP\d{4}-\d{4})|GPA\d{4}-\d{4}|CUP\d{4}-\d{4}',
+            r'\d{4}-\d{2}',
+            r'\d{1,2}-\d{3}',
+            r'No\. \d{6} | \d{3}',
+            r'No\. \d{2}-\d{3}(?:-\d{1,4})?',
+            r'No\. \d{2}-\d{2}'
+        ]
 
-        project_name_matches = re.findall(project_name_regex, text)
+        # Variable para almacenar las coincidencias de los nombres de proyectos
+        project_name_matches = []
+
+        # Bucle para buscar coincidencias con las expresiones regulares
+        for project_name_regex in project_name_regexes:
+            matches = re.findall(project_name_regex, text, re.I)
+            project_name_matches.extend(matches)
+
+        # Eliminar duplicados y asignar valor '-' si no hay coincidencias
         project_names = list(set(project_name_matches)) if project_name_matches else ['-']
 
         # Search for parcel information in the format "{###-###-###}"
@@ -220,6 +222,7 @@ def search_data():
         stfe_proposal_regex = r'a request\b([^.]*)\.'
         malibu_proposal_regex = r'Recommended Action\b([^.]*)\.'
         gabriel_proposal_regex = r'The proposed project\s.([^\.]+\.[^\.]+\.[^\.]+\.[^\.]+(?:\.[^\.]+)?)'
+        puente_proposal_regex = r'CONSIDERATION\s+(.*?)(?=\n\n|[A-Z]{2,})'
 
         proposals = re.findall(moreno_proposal_regex, text, re.S)
         if not proposals:
@@ -238,6 +241,9 @@ def search_data():
         if 'San Gabriel' in text:
             gabriel_matches = re.findall(gabriel_proposal_regex, text, re.I | re.M)
             proposals = [match.strip() for match in gabriel_matches]
+        if 'La Puente' in text:
+            puente_matches = re.findall(puente_proposal_regex, text, re.M)
+            proposals = [match.strip() for match in puente_matches]
 
         captura = proposals[0] if proposals else '-'
 
@@ -299,8 +305,6 @@ def search_data():
         #Call the function to save the data in the excel template
         
         save_in_template(data, 'COPIA PLANTILLA.xlsx')
-
-        # Call the function to save the data in MongoDB
 
         # Display completion message and total execution time
         lbl_messagge.config(
