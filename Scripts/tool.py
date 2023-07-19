@@ -8,6 +8,7 @@ import os
 import pdfplumber
 from functions.excluded_phrases import excluded_phrases
 from functions.saveintemplate import save_in_template
+import webbrowser
 
 # Global variables
 pdf_path = ''
@@ -17,7 +18,7 @@ start_time = 0
 # Function to search for the first date and project name in a PDF file and save them in Excel
 
 def search_data():
-    global pdf_path, pdf_name, start_time
+    global pdf_path, pdf_name, start_time 
 
     # Open the PDF file
     with pdfplumber.open(pdf_path) as pdf:
@@ -78,26 +79,19 @@ def search_data():
 
         # Search for project names that match the regex based on the document content
 
-        # Expresiones regulares existentes
-        project_name_regexes = [
-            r'PEN\d{2}-\d{4}',
-            r'(?:PPM\d{4}-\d{4}|PM\s\d+|PC\s\d{2}-\d{4}|PP\d{4}-\d{4})|GPA\d{4}-\d{4}|CUP\d{4}-\d{4}',
-            r'\d{4}-\d{2}',
-            r'\d{1,2}-\d{3}',
-            r'No\. \d{6} | \d{3}',
-            r'No\. \d{2}-\d{3}(?:-\d{1,4})?',
-            r'No\. \d{2}-\d{2}'
-        ]
-
-        # Variable para almacenar las coincidencias de los nombres de proyectos
+        # Combined regex pattern to match project names
+        project_name_regex = r'\b(?:PEN\d{2}-\d{4}|(?:PPM\d{4}-\d{4}|PM\s\d+|PC\s\d{2}-\d{4}|PP\d{4}-\d{4})|GPA\d{4}-\d{4}|CUP\d{4}-\d{4}|\d{4}-\d{2}|\d{1,2}-\d{3}|No\. \d{6}|No\. \d{2}-\d{3}(?:-\d{1,4})?|No\. \d{2}-\d{2})\b'
+       
+        # Variable to store the matches of project names
         project_name_matches = []
 
-        # Bucle para buscar coincidencias con las expresiones regulares
-        for project_name_regex in project_name_regexes:
-            matches = re.findall(project_name_regex, text, re.I)
-            project_name_matches.extend(matches)
+        # Find all matches using the combined regex pattern
+        matches = re.findall(project_name_regex, text, re.IGNORECASE)
 
-        # Eliminar duplicados y asignar valor '-' si no hay coincidencias
+        # Extend the list of matches
+        project_name_matches.extend(matches)
+
+        # Remove duplicates and assign value '-' if there are no matches
         project_names = list(set(project_name_matches)) if project_name_matches else ['-']
 
         # Search for parcel information in the format "{###-###-###}"
@@ -223,6 +217,7 @@ def search_data():
         malibu_proposal_regex = r'Recommended Action\b([^.]*)\.'
         gabriel_proposal_regex = r'The proposed project\s.([^\.]+\.[^\.]+\.[^\.]+\.[^\.]+(?:\.[^\.]+)?)'
         puente_proposal_regex = r'CONSIDERATION\s+(.*?)(?=\n\n|[A-Z]{2,})'
+        blythe_proposal_regex = r'PUBLIC HEARING:(.*?\..*?\..*?\.)'
 
         proposals = re.findall(moreno_proposal_regex, text, re.S)
         if not proposals:
@@ -244,6 +239,9 @@ def search_data():
         if 'La Puente' in text:
             puente_matches = re.findall(puente_proposal_regex, text, re.M)
             proposals = [match.strip() for match in puente_matches]
+        if 'Blythe' in text:
+            blythe_matches = re.findall(blythe_proposal_regex, text, re.M | re.S)
+            proposals = [match.strip() for match in blythe_matches]
 
         captura = proposals[0] if proposals else '-'
 
@@ -307,7 +305,7 @@ def search_data():
         save_in_template(data, 'COPIA PLANTILLA.xlsx')
 
         # Display completion message and total execution time
-        lbl_messagge.config(
+        lbl_message.config(
             text=f'The search has been finished. Total time: {time.time() - start_time:.2f} segundos')
 
         # Open the Excel file after saving
@@ -334,7 +332,7 @@ def search_data():
 # Function to select a PDF file
 
 def select_pdf():
-    global pdf_path, pdf_name, start_time
+    global pdf_path, pdf_name, start_time, lbl_message
 
     # Open the file selection dialog
     pdf_path = filedialog.askopenfilename(filetypes=[('PDF Files', '*.pdf')])
@@ -346,7 +344,7 @@ def select_pdf():
     btn_search.config(state='disabled')
 
     # Display start search message
-    lbl_messagge.config(text='Searching data in the file...')
+    lbl_message.config(text='Searching data in the file...')
 
     # Save the start time of execution
     start_time = time.time()
@@ -354,19 +352,29 @@ def select_pdf():
     # Call the function to search for data in the PDF file
     search_data()
 
+def open_documentation():
+    url = "https://kyrkematias.github.io/Metro-Data-Tool-Doc/"
+    webbrowser.open_new(url)
 
 # GUI configuration
 root = Tk()
 root.title('Data Tool')
 root.geometry('300x150')
 
-lbl_instrucciones = Label(root, text='Select a PDF file:')
-lbl_instrucciones.pack(pady=10)
+
+# Documentation link label with hyperlink
+
+lbl_instructions = Label(root, text='Select a PDF file:')
+lbl_instructions.pack(pady=10)
 
 btn_search = Button(root, text='Search', command=select_pdf)
 btn_search.pack()
 
-lbl_messagge = Label(root, text='')
-lbl_messagge.pack(pady=10)
+lbl_message = Label(root, text='')
+lbl_message.pack(pady=10)
+
+lbl_documentation = Label(root, text="For more information read the Documentation", fg="blue", cursor="hand2", underline=270)
+lbl_documentation.pack(pady=5)
+lbl_documentation.bind("<Button-1>", lambda e: open_documentation())
 
 root.mainloop()
