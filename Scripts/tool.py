@@ -7,14 +7,15 @@ import time
 import os
 import pdfplumber
 from functions.excluded_phrases import excluded_phrases
+from functions.proposals import search_proposals
 from functions.saveintemplate import save_in_template
+from functions.aplicant_names import search_applicants
 import webbrowser
 
 # Global variables
 pdf_path = ''
 pdf_name = ''
 start_time = 0
-
 # Function to search for the first date and project name in a PDF file and save them in Excel
 
 def search_data():
@@ -67,7 +68,7 @@ def search_data():
         if meeting_match: meeting_type = "Planning Commission Regular Meeting"
         else: meeting_type = "-"
 
-        date_regex = r'\b\d{4}-\d{2}-\d{2}\b|\b\d{1,2}/\d{1,2}/\d{2,4}\b|\b(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]* \d{1,2}(?:st|nd|rd|th)?,? \d{2,4}\b'
+        date_regex = r'\b\d{4}-\d{2}-\d{2}\b|\b\d{1,2}/\d{1,2}/\d{2,4}\b|\b(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]* \d{1,2}(?:st|nd|rd|th)?,? \d{2,4}\b|\b[A-Z]{3}\d{2}-\d{5}\b'
 
         # Find all dates in the PDF
 
@@ -80,13 +81,29 @@ def search_data():
         # Search for project names that match the regex based on the document content
 
         # Combined regex pattern to match project names
-        project_name_regex = r'\b(?:PEN\d{2}-\d{4}|(?:PPM\d{4}-\d{4}|PM\s\d+|PC\s\d{2}-\d{4}|PP\d{4}-\d{4})|GPA\d{4}-\d{4}|CUP\d{4}-\d{4}|\d{4}-\d{2}|\d{1,2}-\d{3}|No\. \d{6}|No\. \d{2}-\d{3}(?:-\d{1,4})?|No\. \d{2}-\d{2})\b'
-       
+        project_name_regex = r'\b(?:PEN\d{2}-\d{4}|(?:PPM\d{4}-\d{4}|PM\s\d+|PC\s\d{2}-\d{4}|PP\d{4}-\d{4})|GPA\d{4}-\d{4}|PLN\d+-\d+|CUP\d{4}-\d{4}|\d{4}-\d{2}|\d{1,2}-\d{3}|No\. \d{6}|No\. \d{2}-\d{3}(?:-\d{1,4})?|No\. \d{2}-\d{2})\b'
+
         # Variable to store the matches of project names
         project_name_matches = []
 
         # Find all matches using the combined regex pattern
         matches = re.findall(project_name_regex, text, re.IGNORECASE)
+
+        # Find the positions of 'Moreno Valley' and 'PUBLIC HEARING ITEMS'
+        moreno_valley_pos = text.lower().find('moreno valley')
+        hearing_start = text.find('PUBLIC HEARING ITEMS')
+        hearing_end = text.find('OTHER COMMISSION BUSINESS')
+
+        # Check if 'Moreno Valley' was found
+        if moreno_valley_pos != -1:
+            # Check if 'PUBLIC HEARING ITEMS' and 'OTHER COMMISSION BUSINESS' were found
+            if hearing_start != -1 and hearing_end != -1:
+                # Extract the text between 'PUBLIC HEARING ITEMS' and 'OTHER COMMISSION BUSINESS'
+                text_between_hearing_and_commission = text[hearing_start + len('PUBLIC HEARING ITEMS'):hearing_end]
+
+                # Find project names within the extracted text
+                project_name_regex = r'\b(?:PEN\d{2}-\d{4}|(?:PPM\d{4}-\d{4}|PM\s\d+|PC\s\d{2}-\d{4}|PP\d{4}-\d{4})|GPA\d{4}-\d{4}|PLN\d+-\d+|CUP\d{4}-\d{4}|\d{4}-\d{2}|\d{1,2}-\d{3}|No\. \d{6}|No\. \d{2}-\d{3}(?:-\d{1,4})?|No\. \d{2}-\d{2})\b'
+                project_names = re.findall(project_name_regex, text_between_hearing_and_commission, re.IGNORECASE)
 
         # Extend the list of matches
         project_name_matches.extend(matches)
@@ -182,18 +199,7 @@ def search_data():
         else:
             application_status = '-'
 
-       # Search for applicant names
-        applicant_regex = r"Applicant: ([A-Z][a-z]+ [A-Z][a-z]+)"
-        applicant_matches = re.findall(applicant_regex, text, re.I | re.M)
-        if not applicant_matches:
-            applicant_regex = r"\b[A-Z][a-z]+ [A-Z][a-z]+\b(?:\sDevelopment Group)?"
-            applicant_matches = re.findall(applicant_regex, text)
-        if not applicant_matches:
-            applicant_regex = r"Owner:\s*([^.,\n]+)"
-            applicant_matches = re.findall(applicant_regex, text)
-        unique_applicants = list(set(applicant_matches))
-        filtered_applicants = [applicant for applicant in unique_applicants if applicant not in excluded_phrases]
-        applicants = filtered_applicants or ['-']
+        applicants = search_applicants(text, excluded_phrases)
 
         # Search for building size with the format if not found in the previous format
 
@@ -209,39 +215,7 @@ def search_data():
 
         # Search for proposals after "Proposal" and save the text until the first period
 
-        moreno_proposal_regex = r'(?:Proposal|Proposed Project|Proposal: |Proposed Project: )\b([^.:]*\d+(?:\.\d+)?[^.]*)\.'
-        corona_proposal_regex = r'PUBLIC HEARING\s*-\s*([^*]+?)\bApplicant:'
-        elsinore_proposal_regex = r'\bID#\s\d{2}-\d{3}\b\s*((?:(?!(?:Attachments\b|.*\bcoronavirus\b)).)*)'
-        hemet_proposal_regex = r'PROJECT SUMMARY:\s*(.*?\.)'
-        stfe_proposal_regex = r'a request\b([^.]*)\.'
-        malibu_proposal_regex = r'Recommended Action\b([^.]*)\.'
-        gabriel_proposal_regex = r'The proposed project\s.([^\.]+\.[^\.]+\.[^\.]+\.[^\.]+(?:\.[^\.]+)?)'
-        puente_proposal_regex = r'CONSIDERATION\s+(.*?)(?=\n\n|[A-Z]{2,})'
-        blythe_proposal_regex = r'PUBLIC HEARING:(.*?\..*?\..*?\.)'
-
-        proposals = re.findall(moreno_proposal_regex, text, re.S)
-        if not proposals:
-            proposals = re.findall(corona_proposal_regex, text, re.S)
-        if not proposals:
-            proposals = [match.group(1).strip() for match in re.finditer(elsinore_proposal_regex, text, re.S | re.IGNORECASE) if 'coronavirus' not in match.group(1).lower()]
-        if not proposals:
-            hemet_matches = re.findall(hemet_proposal_regex, text, re.S | re.M)
-            proposals = [match.strip() for match in hemet_matches]
-        if not proposals:
-            stfe_matches = re.findall(stfe_proposal_regex, text, re.S | re.I | re.M | re.U)
-            proposals = [match.strip() for match in stfe_matches]
-        if not proposals:
-            stfe_matches = re.findall(malibu_proposal_regex, text, re.S | re.I | re.M)
-            proposals = [match.strip() for match in stfe_matches]
-        if 'San Gabriel' in text:
-            gabriel_matches = re.findall(gabriel_proposal_regex, text, re.I | re.M)
-            proposals = [match.strip() for match in gabriel_matches]
-        if 'La Puente' in text:
-            puente_matches = re.findall(puente_proposal_regex, text, re.M)
-            proposals = [match.strip() for match in puente_matches]
-        if 'Blythe' in text:
-            blythe_matches = re.findall(blythe_proposal_regex, text, re.M | re.S)
-            proposals = [match.strip() for match in blythe_matches]
+        proposals = search_proposals(text)
 
         captura = proposals[0] if proposals else '-'
 
