@@ -39,4 +39,13 @@ def search_proposals(text):
         eastvale_matches = re.findall(eastvale_proposal_regex, text, re.M)
         proposals = [match.strip() for match in eastvale_matches]
 
+    # Función para verificar si las palabras 'demolish', 'build' o 'develop' están presentes en el resultado
+    def check_keywords_in_proposal(proposal):
+        keywords = ['demolish', 'build', 'develop']
+        return any(keyword in proposal.lower() for keyword in keywords)
+
+    # Excluir resultados que contengan las palabras 'cannabis' o 'signage' en cualquier forma (mayúsculas o minúsculas),
+    # a menos que también se encuentren las palabras 'demolish', 'build' o 'develop' en el resultado.
+    proposals = [proposal for proposal in proposals if ('cannabis' not in proposal.lower() and 'signage' not in proposal.lower()) or check_keywords_in_proposal(proposal)]
+
     return proposals if proposals else ['-']

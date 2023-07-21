@@ -6,10 +6,18 @@ from tkinter.ttk import Progressbar
 import time
 import os
 import pdfplumber
-from functions.excluded_phrases import excluded_phrases
-from functions.proposals import search_proposals
-from functions.saveintemplate import save_in_template
-from functions.aplicant_names import search_applicants
+from application_status import find_application_status
+from building_size import find_building_sizes
+from excluded_phrases import excluded_phrases
+from existing_use import find_existing_used
+from land_size import find_land_sizes
+from locations import search_locations
+from parcel_numbers import find_parcel_numbers
+from project_name import find_project_names
+from proposals import search_proposals
+from propose_zoning import find_propose_zoning
+from saveintemplate import save_in_template
+from aplicant_names import search_applicants
 import webbrowser
 
 # Global variables
@@ -80,138 +88,31 @@ def search_data():
 
         # Search for project names that match the regex based on the document content
 
-        # Combined regex pattern to match project names
-        project_name_regex = r'\b(?:PEN\d{2}-\d{4}|(?:PPM\d{4}-\d{4}|PM\s\d+|PC\s\d{2}-\d{4}|PP\d{4}-\d{4})|GPA\d{4}-\d{4}|PLN\d+-\d+|CUP\d{4}-\d{4}|\d{4}-\d{2}|\d{1,2}-\d{3}|No\. \d{6}|No\. \d{2}-\d{3}(?:-\d{1,4})?|No\. \d{2}-\d{2})\b'
-
-        # Variable to store the matches of project names
-        project_name_matches = []
-
-        # Find all matches using the combined regex pattern
-        matches = re.findall(project_name_regex, text, re.IGNORECASE)
-
-        # Find the positions of 'Moreno Valley' and 'PUBLIC HEARING ITEMS'
-        moreno_valley_pos = text.lower().find('moreno valley')
-        hearing_start = text.find('PUBLIC HEARING ITEMS')
-        hearing_end = text.find('OTHER COMMISSION BUSINESS')
-
-        # Check if 'Moreno Valley' was found
-        if moreno_valley_pos != -1:
-            # Check if 'PUBLIC HEARING ITEMS' and 'OTHER COMMISSION BUSINESS' were found
-            if hearing_start != -1 and hearing_end != -1:
-                # Extract the text between 'PUBLIC HEARING ITEMS' and 'OTHER COMMISSION BUSINESS'
-                text_between_hearing_and_commission = text[hearing_start + len('PUBLIC HEARING ITEMS'):hearing_end]
-
-                # Find project names within the extracted text
-                project_name_regex = r'\b(?:PEN\d{2}-\d{4}|(?:PPM\d{4}-\d{4}|PM\s\d+|PC\s\d{2}-\d{4}|PP\d{4}-\d{4})|GPA\d{4}-\d{4}|PLN\d+-\d+|CUP\d{4}-\d{4}|\d{4}-\d{2}|\d{1,2}-\d{3}|No\. \d{6}|No\. \d{2}-\d{3}(?:-\d{1,4})?|No\. \d{2}-\d{2})\b'
-                project_names = re.findall(project_name_regex, text_between_hearing_and_commission, re.IGNORECASE)
-
-        # Extend the list of matches
-        project_name_matches.extend(matches)
-
-        # Remove duplicates and assign value '-' if there are no matches
-        project_names = list(set(project_name_matches)) if project_name_matches else ['-']
+        project_names = find_project_names(text)
 
         # Search for parcel information in the format "{###-###-###}"
 
-        parcel_number_regex = r"\d\d\d-\d\d\d-\s?\d\d\d"
-        parcel_number_matches = re.findall(parcel_number_regex, text)
-
-        if not parcel_number_matches:
-            pattern = r"Tract(?:\s+Map)?\s+(\d+)"
-            match = re.search(pattern, text, re.I)
-            if match:
-                tract_number = match.group(1)
-                parcel_numbers = ['Tract No. ' + tract_number]
-            else:
-                # Use \d{4}-\d{3}-\d{3} pattern
-                parcel_number_regex = r"APN:([\s\S]*?)\d{4}-\d{3}-?\s?\d{3}"
-                parcel_number_matches = re.findall(parcel_number_regex, text, re.M)
-                if parcel_number_matches:
-                    parcel_numbers = list(set(parcel_number_matches))
-                else:
-                    parcel_numbers = []
-        else:
-            parcel_numbers = list(set(parcel_number_matches))
+        parcel_numbers = find_parcel_numbers(text)
 
         # Search for all locations that match coordinates or any name in any format representing a physical place
 
-        location_regex = r'Location:\s*(.*?)\s*[\n\r]'
-        location_matches = re.findall(location_regex, text, re.I | re.M)
-        site_regex = r'Project Site:\s*(.*?)\s*[\n\r]'
-        site_matches = re.findall(site_regex, text, re.I | re.M)
-        located_regex = r'located\s*at\s*([\w\d\s.-]+)'
-        located_matches = re.findall(located_regex, text, re.I | re.M)
-        located_on_regex = r'located on\s*([\w\d\s.-]+)'
-        located_on_matches = re.findall(located_on_regex, text, re.I | re.M)
-        located_in_regex = r'located in\s*([\w\d\s.-]+)'
-        located_in_matches = re.findall(located_in_regex, text, re.I | re.M)
-        locations = []
-        for location in location_matches:
-            if re.search(r'(\d+(\.\d+)?),\s*(\d+(\.\d+)?)', location):
-                # If the location matches coordinates, add it to the locations list
-                locations.append(location)
-            else:
-                # If the location doesn't match coordinates, check if it contains any name representing a physical place
-                if re.search(r'\b[A-Za-z\s]+\b', location):
-                    locations.append(location)
-
-        for location in site_matches:
-            if re.search(r'(\d+(\.\d+)?),\s*(\d+(\.\d+)?)', location):
-                # If the location matches coordinates, add it to the locations list
-                locations.append(location)
-            else:
-                # If the location doesn't match coordinates, check if it contains any name representing a physical place
-                if re.search(r'\b[A-Za-z\s]+\b', location):
-                    locations.append(location)
-
-        for location in located_matches:
-            if re.search(r'(\d+(\.\d+)?),\s*(\d+(\.\d+)?)', location):
-                # If the location matches coordinates, add it to the locations list
-                locations.append(location)
-            else:
-                # If the location doesn't match coordinates, check if it contains any name representing a physical place
-                if re.search(r'\b[A-Za-z\s]+\b', location):
-                    locations.append(location)
-
-        for location in located_on_matches:
-            if re.search(r'(\d+(\.\d+)?),\s*(\d+(\.\d+)?)', location):
-                locations.append(location)
-            else:
-                if re.search(r'\b[A-Za-z\s]+\b', location):
-                    locations.append(location)
-        
-        for location in located_in_matches:
-                    if re.search(r'(\d+(\.\d+)?),\s*(\d+(\.\d+)?)', location):
-                        locations.append(location)
-                    else:
-                        if re.search(r'\b[A-Za-z\s]+\b', location):
-                            locations.append(location)
-                    
-        project_locations = list(set(locations)) if locations else ['-']
+        project_locations = search_locations(text)                   
 
         # Search for the application status ("Approved" or "Approval") in any format or variation
 
-        application_status_regex = r'\b(APPROVED|APPROVAL|APPROVE)\b'
-        application_status_match = re.search(application_status_regex, text, re.I)
+        application_status = find_application_status(text)
 
-        if application_status_match:
-            application_status = "APPROVED"
-        else:
-            application_status = '-'
+        #Search for applicants names
 
         applicants = search_applicants(text, excluded_phrases)
 
         # Search for building size with the format if not found in the previous format
 
-        building_size_regex = r'\(?(\d{1,3}(?:,\d{3})*(?:\.\d+)?)\)?\s*(SQUARES?\s*FEETS?|sq.\s*ft|SF|SQUARES?\s*FooTS?)'
-        building_size_match = re.findall(building_size_regex, text, re.I)
-        building_sizes = list(set([size[0].strip('()') + ' SF' for size in building_size_match])) if building_size_match else ['-']
+        building_sizes = find_building_sizes(text)
 
         # Search for land sizes in acres with the formats "2.6 acre", "33.57-acre", or "18.49- acre site"
 
-        land_size_regex = r'(\d+(?:\.\d+)?)\s*(?:-)?\s*acre\s*(?:site)?'
-        land_size_matches = re.findall(land_size_regex, text, re.I)
-        land_sizes = list(set([size + ' acre' for size in land_size_matches])) if land_size_matches else ['-']
+        land_sizes = find_land_sizes(text)
 
         # Search for proposals after "Proposal" and save the text until the first period
 
@@ -221,19 +122,11 @@ def search_data():
 
         # Search for existing use
 
-        existing_used = []
-
-        # Search for the word "existing" followed by the complete phrase until the first period
-
-        existing_regex = r'(?i)\bexisting\b[^.]*'
-        existing_matches = re.findall(existing_regex, text)
-        existing_used = existing_matches if existing_matches else ['-']
+        existing_used = find_existing_used(text)
 
         # Search for propose zoning
 
-        propose_zoning_regex = r'(?i)\b(?:proposal|PUBLIC HEARING)\b.*?\b(Construction|subdivide|Expansion|Merge|Remodel|Subdivition(?:\s+and)?(?:\s+Construction)?|Development|Demolition(?:\s+and\s+construction)?)\b'
-        propose_zoning_matches = re.findall(propose_zoning_regex, text, re.I | re.S | re.M)
-        propose_zoning = propose_zoning_matches if propose_zoning_matches else '-'
+        propose_zoning = find_propose_zoning(text)
 
         # Write the results to Excel
 
