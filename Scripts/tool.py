@@ -26,6 +26,23 @@ pdf_name = ''
 start_time = 0
 # Function to search for the first date and project name in a PDF file and save them in Excel
 
+cities_paterns = {
+    'MORENO VALLEY': r'(?s)PUBLIC HEARING ITEMS\s+(.*?)OTHER COMMISSION BUSINESS',
+    'EASTVALE': r'(?s)Project No\.\s+(.*?)Notes:',
+    'CORONA': r'(?s)PUBLIC HEARING\s+(.*?)That the Planning and Housing Commission',
+    'COACHELA': r'(?s)PUBLIC HEARING CALENDAR \(QUASI-JUDICIAL\)(.*?)INFORMATIONAL:',
+    'HEMET': r'(?s)PUBLIC HEARING(.*?)DEPARTMENT REPORTS',
+    'INDIAN WELLS': r'(?s)PUBLIC HEARINGS(.*?)AYES',
+    'LAKE ELSINORE': r'(?s)PUBLIC HEARING ITEM\(S\)(?=.*ID#)(.*?)BUSINESS ITEM\(S\)',
+    'LA MIRADA': r'(?s)PUBLIC HEARING.*',
+    'LA QUINTA': r'(?s)Project Information\s*\n(?=.*\bCASE NUMBER\b)(?=.*\bAPPLICANT\b)(?=.*\bREQUEST\b)(.*?)WEST:',
+    'MALIBU': r'(?s)Continued Public Hearings(.*?)Old Business FLAGS GMI',
+    'SAN GABRIEL': r'(?s)PUBLIC HEARING(.*?)COMMENTS FROM THE PLANNING MANAGER',
+    'SANTA FE SPRINGS': r'(?s)PUBLIC HEARING(.*?)CONSENT ITEM',
+    'WEST HOLLYWOOD': r'(?s)PUBLIC HEARINGS\.(.*?)NEW BUSINESS\.',
+    'INDIO': r'PUBLIC HEARING ITEMS:(.*?)(?=ACTION ITEMS:)'
+}
+
 def search_data():
     global pdf_path, pdf_name, start_time 
 
@@ -69,6 +86,30 @@ def search_data():
         for page in pdf.pages:
             text += page.extract_text()
 
+        # Find the city name in the text
+        city_name = None
+        for city, pattern in cities_paterns.items():
+            if re.search(pattern, text, re.IGNORECASE):
+                city_name = city
+                break
+
+        if not city_name:
+            lbl_message.config(text="City not recognized in the document.")
+            # Set the city pattern to a default pattern that matches the entire text
+            city_pattern = r'(?s).*'
+        else:
+            # Get the relevant pattern for the identified city
+            city_pattern = cities_paterns[city_name]
+
+        # Extract the relevant portion of the document based on the city's pattern
+        city_text_matches = re.findall(city_pattern, text, re.IGNORECASE | re.DOTALL)
+        if not city_text_matches:
+            lbl_message.config(text=f"No relevant data found for {city_name}.")
+            return
+
+        # Combine all matches into a single string
+        city_text = ' '.join(city_text_matches)                                
+
         # Check if the phrase "PLANNING COMMISSION" is present in any variant
 
         meeting_regex = r'PLANNING COMMISSION|Planning and Housing Commission'
@@ -88,45 +129,45 @@ def search_data():
 
         # Search for project names that match the regex based on the document content
 
-        project_names = find_project_names(text)
+        project_names = find_project_names(city_text)
 
         # Search for parcel information in the format "{###-###-###}"
 
-        parcel_numbers = find_parcel_numbers(text)
+        parcel_numbers = find_parcel_numbers(city_text)
 
         # Search for all locations that match coordinates or any name in any format representing a physical place
 
-        project_locations = search_locations(text)                   
+        project_locations = search_locations(city_text)                   
 
         # Search for the application status ("Approved" or "Approval") in any format or variation
 
-        application_status = find_application_status(text)
+        application_status = find_application_status(city_text)
 
         #Search for applicants names
 
-        applicants = search_applicants(text, excluded_phrases)
+        applicants = search_applicants(city_text, excluded_phrases)
 
         # Search for building size with the format if not found in the previous format
 
-        building_sizes = find_building_sizes(text)
+        building_sizes = find_building_sizes(city_text)
 
         # Search for land sizes in acres with the formats "2.6 acre", "33.57-acre", or "18.49- acre site"
 
-        land_sizes = find_land_sizes(text)
+        land_sizes = find_land_sizes(city_text)
 
         # Search for proposals after "Proposal" and save the text until the first period
 
-        proposals = search_proposals(text)
-
+        proposals = search_proposals(city_text)
+        #test if works, or change sheet['I2'] = '; '.join(captura)
         captura = proposals[0] if proposals else '-'
 
         # Search for existing use
 
-        existing_used = find_existing_used(text)
+        existing_used = find_existing_used(city_text)
 
         # Search for propose zoning
 
-        propose_zoning = find_propose_zoning(text)
+        propose_zoning = find_propose_zoning(city_text)
 
         # Write the results to Excel
 
@@ -138,7 +179,7 @@ def search_data():
         sheet['F2'] = '; '.join(parcel_numbers)
         sheet['G2'] = '; '.join(building_sizes)
         sheet['H2'] = '; '.join(land_sizes)
-        sheet['I2'] = '; '.join(proposals)
+        sheet['I2'] = captura
         sheet['J2'] = '; '.join(existing_used)
         sheet['K2'] = '; '.join(propose_zoning)
         sheet['L2'] = application_status
