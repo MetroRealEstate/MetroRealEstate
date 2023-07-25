@@ -6,19 +6,23 @@ from tkinter.ttk import Progressbar
 import time
 import os
 import pdfplumber
-from application_status import find_application_status
-from building_size import find_building_sizes
-from excluded_phrases import excluded_phrases
-from existing_use import find_existing_used
-from land_size import find_land_sizes
-from locations import search_locations
-from parcel_numbers import find_parcel_numbers
-from project_name import find_project_names
-from proposals import search_proposals
-from propose_zoning import find_propose_zoning
-from saveintemplate import save_in_template
-from aplicant_names import search_applicants
+from functions.application_status import find_application_status
+from functions.building_size import find_building_sizes
+from functions.excluded_phrases import excluded_phrases
+from functions.existing_use import find_existing_used
+from functions.land_size import find_land_sizes
+from functions.locations import search_locations
+from functions.parcel_numbers import find_parcel_numbers
+from functions.project_name import find_project_names
+from functions.proposals import search_proposals
+from functions.propose_zoning import find_propose_zoning
+from functions.saveintemplate import save_in_template
+from functions.aplicant_names import search_applicants
 import webbrowser
+import pytesseract
+from PIL import Image
+import pytesseract
+from pdf2image import convert_from_path
 
 # Global variables
 pdf_path = ''
@@ -34,9 +38,9 @@ cities_paterns = {
     'HEMET': r'(?s)PUBLIC HEARING(.*?)DEPARTMENT REPORTS',
     'INDIAN WELLS': r'(?s)PUBLIC HEARINGS(.*?)AYES',
     'LAKE ELSINORE': r'(?s)PUBLIC HEARING ITEM\(S\)(?=.*ID#)(.*?)BUSINESS ITEM\(S\)',
-    'LA MIRADA': r'(?s)PUBLIC HEARING.*',
+    'LA MIRADA': r'PUBLIC HEARING(.*?)MOTION CARRIED BY',
     'LA QUINTA': r'(?s)Project Information\s*\n(?=.*\bCASE NUMBER\b)(?=.*\bAPPLICANT\b)(?=.*\bREQUEST\b)(.*?)WEST:',
-    'MALIBU': r'(?s)Continued Public Hearings(.*?)Old Business FLAGS GMI',
+    'MALIBU': r'(?s)Continued Public Hearings(.*?)Old Business',
     'SAN GABRIEL': r'(?s)PUBLIC HEARING(.*?)COMMENTS FROM THE PLANNING MANAGER',
     'SANTA FE SPRINGS': r'(?s)PUBLIC HEARING(.*?)CONSENT ITEM',
     'WEST HOLLYWOOD': r'(?s)PUBLIC HEARINGS\.(.*?)NEW BUSINESS\.',
@@ -85,6 +89,18 @@ def search_data():
         text = ""
         for page in pdf.pages:
             text += page.extract_text()
+
+         
+        # If the extracted text is empty, use OCR
+        if not text.strip():
+            # Convert the PDF to images
+            images = convert_from_path(pdf_path)
+            text = ""
+
+            # Perform OCR on each image
+            for img in images:
+                img_text = pytesseract.image_to_string(img, lang='eng')
+                text += img_text + " "  # Concatenate text from all images
 
         # Find the city name in the text
         city_name = None

@@ -11,7 +11,7 @@ def search_applicants(text, excluded_phrases=[]):
         applicant_matches = re.findall(applicant_regex, text)
     if not applicant_matches:
         applicant_regex = r"Owner:\s*([^.,\n]+)"
-        applicant_matches = re.findall(applicant_regex, text)
+        applicant_matches = re.findall(applicant_regex, text, re.I | re.M)
     if not applicant_matches:
         applicant_regex = r'Planner: ([A-Z][a-z]+ [A-Z][a-z]+)'
 
