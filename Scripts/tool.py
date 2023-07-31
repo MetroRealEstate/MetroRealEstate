@@ -1,4 +1,5 @@
 import re
+from tkinter import ttk
 import PyPDF2
 from openpyxl import load_workbook, Workbook
 from tkinter import Tk, Label, Button, filedialog
@@ -18,6 +19,7 @@ from functions.proposals import search_proposals
 from functions.propose_zoning import find_propose_zoning
 from functions.saveintemplate import save_in_template
 from functions.aplicant_names import search_applicants
+from functions.split_projects import split_projects
 import webbrowser
 import pytesseract
 from PIL import Image
@@ -31,9 +33,9 @@ start_time = 0
 # Function to search for the first date and project name in a PDF file and save them in Excel
 
 cities_paterns = {
-    'MORENO VALLEY': r'(?s)PUBLIC HEARING ITEMS\s+(.*?)OTHER COMMISSION BUSINESS',
-    'EASTVALE': r'(?s)Project No\.\s+(.*?)Notes:',
-    'CORONA': r'(?s)PUBLIC HEARING\s+(.*?)That the Planning and Housing Commission',
+    'MORENO VALLEY': r'(?s)PUBLIC HEARING ITEMS\s+(.*?)STAFF COMMENTS',
+    'EASTVALE': r'(?s)Project No\..*?Notes:',
+    'CORONA': r'(?s)PUBLIC HEARINGS(.*?)WRITTEN COMMUNICATIONS',
     'COACHELA': r'(?s)PUBLIC HEARING CALENDAR \(QUASI-JUDICIAL\)(.*?)INFORMATIONAL:',
     'HEMET': r'(?s)PUBLIC HEARING(.*?)DEPARTMENT REPORTS',
     'INDIAN WELLS': r'(?s)PUBLIC HEARINGS(.*?)AYES',
@@ -44,11 +46,13 @@ cities_paterns = {
     'SAN GABRIEL': r'(?s)PUBLIC HEARING(.*?)COMMENTS FROM THE PLANNING MANAGER',
     'SANTA FE SPRINGS': r'(?s)PUBLIC HEARING(.*?)CONSENT ITEM',
     'WEST HOLLYWOOD': r'(?s)PUBLIC HEARINGS\.(.*?)NEW BUSINESS\.',
-    'INDIO': r'PUBLIC HEARING ITEMS:(.*?)(?=ACTION ITEMS:)'
+    'INDIO': r'PUBLIC HEARING ITEMS:(.*?)(?=ACTION ITEMS:)',
+    'REDLANDS': r'(?s)\bRESOLUTION NO\.\s*([\s\S]*?)\bWHEREAS\b(?!.*\bWHEREAS\b)'
 }
 
+
 def search_data():
-    global pdf_path, pdf_name, start_time 
+    global pdf_path, pdf_name, start_time
 
     # Open the PDF file
     with pdfplumber.open(pdf_path) as pdf:
@@ -56,41 +60,33 @@ def search_data():
         workbook = Workbook()
         sheet = workbook.active
 
-        # Write headers in Excel
-        sheet['A1'] = 'Meeting type'
-        sheet['B1'] = 'Meeting Date'
-        sheet['C1'] = 'Project Name'
-        sheet['D1'] = 'Applicant'
-        sheet['E1'] = 'Project Location'
-        sheet['F1'] = 'Parcel'
-        sheet['G1'] = 'Building Size'
-        sheet['H1'] = 'Land Size'
-        sheet['I1'] = 'Propose Project'
-        sheet['J1'] = 'Existing Used'
-        sheet['K1'] = 'Propose Zoning'
-        sheet['L1'] = 'Current Application Status'
-        sheet['M1'] = 'Comments'
+        
+
+        text = ""
 
         # Variables to store the results
-        meeting_type = ''
-        meeting_date = ''
-        project_names = []
-        parcel_numbers = []
-        project_locations = []
-        building_sizes = []
-        land_sizes = []
-        application_status = ''
-        applicants = []
-        proposals = []
 
-        meeting_type = ''
+        # Project Block
+        project_block = [
+            # {
+            #     'meeting_type': '',
+            #     'meeting_date': '',
+            #     'project_names': '',
+            #     'parcel_numbers': '',
+            #     'project_locations': '',
+            #     'building_sizes': '',
+            #     'land_sizes': '',
+            #     'application_status': '',
+            #     'applicants': '',
+            #     'proposals': ''
+            # }
+        ]
 
         # After extracting the text from the PDF
-        text = ""
+
         for page in pdf.pages:
             text += page.extract_text()
 
-         
         # If the extracted text is empty, use OCR
         if not text.strip():
             # Convert the PDF to images
@@ -118,88 +114,87 @@ def search_data():
             city_pattern = cities_paterns[city_name]
 
         # Extract the relevant portion of the document based on the city's pattern
-        city_text_matches = re.findall(city_pattern, text, re.IGNORECASE | re.DOTALL)
+        city_text_matches = re.findall(
+            city_pattern, text, re.IGNORECASE | re.DOTALL)
         if not city_text_matches:
             lbl_message.config(text=f"No relevant data found for {city_name}.")
             return
 
         # Combine all matches into a single string
-        city_text = ' '.join(city_text_matches)                                
+        city_text = ' '.join(city_text_matches)
 
         # Check if the phrase "PLANNING COMMISSION" is present in any variant
 
         meeting_regex = r'PLANNING COMMISSION|Planning and Housing Commission'
         meeting_match = re.search(meeting_regex, text, re.I | re.M)
-        if meeting_match: meeting_type = "Planning Commission Regular Meeting"
-        else: meeting_type = "-"
+        if meeting_match:
+            meeting_type = "Planning Commission Regular Meeting"
+        else:
+            meeting_type = "-"
 
         date_regex = r'\b\d{4}-\d{2}-\d{2}\b|\b\d{1,2}/\d{1,2}/\d{2,4}\b|\b(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]* \d{1,2}(?:st|nd|rd|th)?,? \d{2,4}\b|\b[A-Z]{3}\d{2}-\d{5}\b'
 
         # Find all dates in the PDF
 
-        all_dates = re.findall(date_regex, text)
+        date = re.findall(date_regex, text)
 
         # Get the first date found in the document
 
-        meeting_date = all_dates[0] if all_dates else '-'
+        meeting_date = date[0] if date else '-'
 
         # Search for project names that match the regex based on the document content
 
-        project_names = find_project_names(city_text)
+        projects_substring = split_projects(city_text)
+        
+        for project in projects_substring:
+            print(project)
 
-        # Search for parcel information in the format "{###-###-###}"
+            project_data = {}
 
-        parcel_numbers = find_parcel_numbers(city_text)
+            # Completar el resto del código para obtener los datos del proyecto
+            
+            project_data["meeting_type"] = meeting_type
+            project_data["meeting_date"] = meeting_date
+            project_data["project_names"] = ','.join(find_project_names(project))
+            project_data["applicant"] = ','.join(search_applicants(project))
+            project_data["project_locations"] = ','.join(search_locations(project))
+            project_data["parcel_numbers"] = ','.join(find_parcel_numbers(project))
+            project_data["building_sizes"] = ','.join(find_building_sizes(project))
+            project_data["land_sizes"] = ','.join(find_land_sizes(project))
+            proposals = search_proposals(project)
+            project_data["captura"] = '; '.join(proposals) if proposals else '-'
+            project_data["existing_used"] = ','.join(find_existing_used(project))
+            project_data["propose_zoning"] = ','.join(find_propose_zoning(project))
+            project_data["application_status"] = find_application_status(project)
+            
+            # Paso 3: Agrega el diccionario a la lista
+            project_block.append(project_data)
 
-        # Search for all locations that match coordinates or any name in any format representing a physical place
-
-        project_locations = search_locations(city_text)                   
-
-        # Search for the application status ("Approved" or "Approval") in any format or variation
-
-        application_status = find_application_status(city_text)
-
-        #Search for applicants names
-
-        applicants = search_applicants(city_text, excluded_phrases)
-
-        # Search for building size with the format if not found in the previous format
-
-        building_sizes = find_building_sizes(city_text)
-
-        # Search for land sizes in acres with the formats "2.6 acre", "33.57-acre", or "18.49- acre site"
-
-        land_sizes = find_land_sizes(city_text)
-
-        # Search for proposals after "Proposal" and save the text until the first period
-
-        proposals = search_proposals(city_text)
-        #test if works, or change sheet['I2'] = '; '.join(captura)
-        captura = proposals[0] if proposals else '-'
-
-        # Search for existing use
-
-        existing_used = find_existing_used(city_text)
-
-        # Search for propose zoning
-
-        propose_zoning = find_propose_zoning(city_text)
+        # Verificar si project_block está vacío y agregar un diccionario vacío si es necesario
+        if not project_block:
+            project_block.append({})
 
         # Write the results to Excel
-
-        sheet['A2'] = meeting_type
-        sheet['B2'] = meeting_date
-        sheet['C2'] = '; '.join(project_names)
-        sheet['D2'] = ', '.join(applicants)
-        sheet['E2'] = '; '.join(project_locations)
-        sheet['F2'] = '; '.join(parcel_numbers)
-        sheet['G2'] = '; '.join(building_sizes)
-        sheet['H2'] = '; '.join(land_sizes)
-        sheet['I2'] = captura
-        sheet['J2'] = '; '.join(existing_used)
-        sheet['K2'] = '; '.join(propose_zoning)
-        sheet['L2'] = application_status
-
+        # Write headers in Excel
+        for project in project_block:
+            print(project)
+        headers = list(project_block[0].keys())
+        sheet.append(headers)
+        # sheet['A2'] = meeting_type
+        # sheet['B2'] = meeting_date
+        # sheet['C2'] = '; '.join(project_names)
+        # sheet['D2'] = ', '.join(applicants)
+        # sheet['E2'] = '; '.join(project_locations)
+        # sheet['F2'] = '; '.join(parcel_numbers)
+        # sheet['G2'] = '; '.join(building_sizes)
+        # sheet['H2'] = '; '.join(land_sizes)
+        # sheet['I2'] = captura
+        # sheet['J2'] = '; '.join(existing_used)
+        # sheet['K2'] = '; '.join(propose_zoning)
+        # sheet['L2'] = application_status
+        for item in project_block:
+            row_data = list(item.values())
+            sheet.append(row_data)
         # Save the Excel file
 
         excel_path = f'{pdf_name}_results.xlsx'
@@ -209,24 +204,25 @@ def search_data():
 
         # Create a list with the collected data
 
-        data = [
-            meeting_type,
-            meeting_date,
-            '; '.join(project_names),
-            '; '.join(applicants),
-            '; '.join(project_locations),
-            '; '.join(parcel_numbers),
-            '; '.join(building_sizes),
-            '; '.join(land_sizes),
-            '; '.join(proposals),
-            '; '.join(existing_used),
-            '; '.join(propose_zoning),
-            application_status,
-        ]
+      
+        # data = [
+        #     meeting_type,
+        #     meeting_date,
+        #     '; '.join(project_names),
+        #     '; '.join(applicants),
+        #     '; '.join(project_locations),
+        #     '; '.join(parcel_numbers),
+        #     '; '.join(building_sizes),
+        #     '; '.join(land_sizes),
+        #     '; '.join(proposals),
+        #     '; '.join(existing_used),
+        #     '; '.join(propose_zoning),
+        #     application_status,
+        # ] 
 
-        #Call the function to save the data in the excel template
-        
-        save_in_template(data, 'COPIA PLANTILLA.xlsx')
+        # Call the function to save the data in the excel template
+
+        #save_in_template(data, 'COPIA PLANTILLA.xlsx')
 
         # Display completion message and total execution time
         lbl_message.config(
@@ -235,25 +231,29 @@ def search_data():
         # Open the Excel file after saving
         os.startfile(excel_path)
 
-       # Display results in the console
-        print(f"Meeting Type: {meeting_type}")
-        print(f"Meeting Date: {meeting_date}")
-        print(f"Project Names: {project_names}")
-        print(f"Applicants: {applicants}")
-        print(f"Project Locations: {project_locations}")
-        print(f"Parcel Numbers: {parcel_numbers}")
-        print(f"Building Sizes: {building_sizes}")
-        print(f"Land Sizes: {land_sizes}")
-        print(f"Proposals: {proposals}")
-        print(f"Application Status: {application_status}")
-        print(f"Existing / Used: {existing_used}")
-        print(f"Propose Zoning: {propose_zoning}")
-        print("Results saved to Excel file.")
+    #    # Display results in the console
+    #     print(f"Meeting Type: {meeting_type}")
+    #     print(f"Meeting Date: {meeting_date}")
+    #     print(f"Project Names: {project_names}")
+    #     print(f"Applicants: {applicants}")
+    #     print(f"Project Locations: {project_locations}")
+    #     print(f"Parcel Numbers: {parcel_numbers}")
+    #     print(f"Building Sizes: {building_sizes}")
+    #     print(f"Land Sizes: {land_sizes}")
+    #     print(f"Proposals: {proposals}")
+    #     print(f"Application Status: {application_status}")
+    #     print(f"Existing / Used: {existing_used}")
+    #     print(f"Propose Zoning: {propose_zoning}")
+    #     print(f"template text {city_text}")
+    #     print("Results saved to Excel file.")
+
+    
 
     # Enable the search button after completing the task
     btn_search.config(state='normal')
 
 # Function to select a PDF file
+
 
 def select_pdf():
     global pdf_path, pdf_name, start_time, lbl_message
@@ -276,28 +276,36 @@ def select_pdf():
     # Call the function to search for data in the PDF file
     search_data()
 
+
 def open_documentation():
     url = "https://kyrkematias.github.io/Metro-Data-Tool-Doc/"
     webbrowser.open_new(url)
 
+
 # GUI configuration
 root = Tk()
 root.title('Data Tool')
-root.geometry('300x150')
-
+root.geometry('400x250')
+root.configure(bg='white')
 
 # Documentation link label with hyperlink
+style = ttk.Style()
+style.configure('TLabel', font=('Helvetica', 12), background='white')
+style.configure('TButton', font=('Helvetica', 14, 'bold'),
+                background='#007BFF', foreground='white')
 
-lbl_instructions = Label(root, text='Select a PDF file:')
-lbl_instructions.pack(pady=10)
+lbl_instructions = ttk.Label(root, text='Select a PDF file:')
+lbl_instructions.pack(pady=30)
 
-btn_search = Button(root, text='Search', command=select_pdf)
+btn_search = ttk.Button(root, text='Search', command=select_pdf)
 btn_search.pack()
+style.configure('TButton', foreground='#555555')
 
-lbl_message = Label(root, text='')
-lbl_message.pack(pady=10)
+lbl_message = ttk.Label(root, text='')
+lbl_message.pack(pady=20)
 
-lbl_documentation = Label(root, text="For more information read the Documentation", fg="blue", cursor="hand2", underline=270)
+lbl_documentation = Label(root, text="For more information read the Documentation",
+                          fg="blue", cursor="hand2", underline=270, font=('Verdana', 10))
 lbl_documentation.pack(pady=5)
 lbl_documentation.bind("<Button-1>", lambda e: open_documentation())
 
