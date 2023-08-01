@@ -10,7 +10,7 @@ def search_proposals(text):
     gabriel_proposal_regex = r'The proposed project\s.([^\.]+\.[^\.]+\.[^\.]+\.[^\.]+(?:\.[^\.]+)?)'
     puente_proposal_regex = r'CONSIDERATION\s+(.*?)(?=\n\n|[A-Z]{2,})'
     blythe_proposal_regex = r'PUBLIC HEARING:(.*?\..*?\..*?\.)'
-    eastvale_proposal_regex = r'(?s)Project(?:(?!\s*Planner:|\s*Notes:).)*\s*Description:\s*(.*?)(?:\s*Planner:|\s*Notes:)'
+    eastvale_proposal_regex = r'Project\s*\n\s*Description:\s*(.*?)\s*\n\s*Planner:'
     redlands_proposal_regex = r'(?s)WHEREAS\b(.*?)\b(?=\nWHEREAS\b.*\nWHEREAS\b|$)'
     coachella_proposal_regex = r'(?s)PUBLIC HEARING CALENDAR \(QUASI-JUDICIAL\)(.*?)INFORMATIONAL:'
 

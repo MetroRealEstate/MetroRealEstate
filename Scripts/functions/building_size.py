@@ -2,7 +2,7 @@ import re
 
 def find_building_sizes(text):
     # Regex pattern to match building sizes
-    building_size_regex = r'\(?(\d{1,3}(?:,\d{3})*(?:\.\d+)?)\)?\s*(SQUARES?\s*FEETS?|sq.\s*ft|SF|SQUARES?\s*FooTS?)|\b(\d+)\s*-?\s*unit\b|(\d{1,3}(?:,\d{3})+)(?:-(?:square\s*)-?foot)'
+    building_size_regex = r'\(?(\d{1,3}(?:,\d{3})*(?:\.\d+)?)\)?\s*(SQUARES?\s*FEETS?|sq.\s*ft|SF|SQUARES?\s*FooTS?)|\b(\d+)\s*-?\s*unit\b|(\d{1,3}(?:,\d{3})+)(?:-(?:square\s*)-?foot)|\b(\d+\s*[-]?[\s-]*s\.f\.)'
     building_size_match = re.findall(building_size_regex, text, re.I)
     building_sizes = []
     for size in building_size_match:

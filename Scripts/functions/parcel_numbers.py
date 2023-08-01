@@ -2,7 +2,7 @@ import re
 
 def find_parcel_numbers(text):
     # Regex pattern to match parcel numbers in the format "###-###-###"
-    parcel_number_regex = r"\d\d\d-\d\d\d-\s?\d\d\d|(APNs?:\s*\d+(?:-\d+)+)|(APN.?s?\s*\d+(?:-\d+)+)|(Assessor’s Parcel Number\s*\d+(?:-\d+)+)"
+    parcel_number_regex = r"\d\d\d-\d\d\d-\s?\d\d\d|(APNs?:\s*\d+(?:-\d+)+)|(APN.?s?\s*\d+(?:-\d+)+)|(Assessor’s Parcel Number\s*\d+(?:-\d+)+)|\b(?:Assessor’s\s+)?Parcel\s+Number:\s*(\d(?:\s*-?\s*\d+)*(?:\s*and\s*\d(?:\s*-?\s*\d+)*)*)\b|\bAssessor\s*Parcel\s*Number:\s*(\d+-\d+-\d+)\b|\bAPN\s*(\d+-\d+-\d+)\b|Assessor’s Parcel Number ((?:\d+-\n)*\d+-\d+)"
     parcel_number_matches = re.findall(parcel_number_regex, text)
 
     if not parcel_number_matches:
