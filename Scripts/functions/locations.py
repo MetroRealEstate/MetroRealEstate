@@ -13,6 +13,8 @@ def search_locations(text, max_locations=10):
     located_in_matches = re.findall(located_in_regex, text, re.I | re.M)
     at_regex = r'\bat\b\s*([\w\d\s.-]+)'
     at_matches = re.findall(at_regex, text, re.I | re.M)
+    is_located_regex = r'\bis located\s*(.*?)\s*[\n\r]'
+    is_located_matches = re.findall(is_located_regex, text, re.I | re.M)
 
     locations = []
     location_count = 0
@@ -79,6 +81,17 @@ def search_locations(text, max_locations=10):
             break
 
     for location in at_matches:
+        if re.search(r'(\d+(\.\d+)?),\s*(\d+(\.\d+)?)', location):
+            locations.append(location)
+        else:
+            if re.search(r'\b[A-Za-z\s]+\b', location):
+                locations.append(location)
+
+        location_count += 1
+        if location_count >= max_locations:
+            break
+
+    for location in is_located_matches:
         if re.search(r'(\d+(\.\d+)?),\s*(\d+(\.\d+)?)', location):
             locations.append(location)
         else:

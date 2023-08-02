@@ -6,6 +6,8 @@ def split_projects(city_text):
     moreno_project_pattern = r'Case: .+?(?=\n\d+\. |Case:|\Z)' 
     eastvale_project_pattern = r'Project No\..*?(.*?)Notes:'
     blythe_project_pattern = r'(?s)TENTATIVE PARCEL MAP \d+\.(.*?)(?:Tentative Parcel Map \d+\.|CONTINUED BUSINESS:)'
+    coachella_project_pattern = r'(?s)(SUBJECT:.*?\bSTAFF RECOMMENDATION:)'
+    hemet_project_pattern = r'(\b\d+\.[A-Z]\..*?(?=\b\d+\.[A-Z]\.|DEPARTMENT REPORTS\b))'
     projects_matches = []
     print("City text: " + city_text)
 
@@ -17,6 +19,10 @@ def split_projects(city_text):
         project_pattern = eastvale_project_pattern
     elif "BLYTHE" in city_text:
         project_pattern = blythe_project_pattern
+    elif "STAFF RECOMMENDATION:" in city_text:
+        project_pattern = coachella_project_pattern
+    elif "Recommendation:" in city_text:
+        project_pattern = hemet_project_pattern
     else:
         return projects_matches
     

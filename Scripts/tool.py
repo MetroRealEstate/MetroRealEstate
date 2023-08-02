@@ -33,13 +33,12 @@ pdf_name = ''
 start_time = 0
 # Function to search for the first date and project name in a PDF file and save them in Excel
 
-#Cut the PDF in a block in order to search relevant information
 cities_paterns = {
     'MORENO VALLEY': r'(?s)PUBLIC HEARING ITEMS\s+(.*?)STAFF COMMENTS',
     'EASTVALE': r'(?s)Project No\..*?Notes:',
     'CORONA': r'(?s)PUBLIC HEARINGS(.*?)WRITTEN COMMUNICATIONS',
-    'COACHELA': r'(?s)PUBLIC HEARING CALENDAR \(QUASI-JUDICIAL\)(.*?)INFORMATIONAL:',
-    'HEMET': r'(?s)PUBLIC HEARING(.*?)DEPARTMENT REPORTS',
+    'COACHELA': r'(?s)(SUBJECT:.*?\bSTAFF RECOMMENDATION:)',
+    'HEMET': r'(?s)(PUBLIC HEARING?\s*ITEMS.*?The following items are for information and discussion purposes only. No action is required at this time.)',
     'INDIAN WELLS': r'(?s)PUBLIC HEARINGS(.*?)AYES',
     'LAKE ELSINORE': r'(?s)PUBLIC HEARING ITEM\(S\)(?=.*ID#)(.*?)BUSINESS ITEM\(S\)',
     'LA MIRADA': r'PUBLIC HEARING(.*?)MOTION CARRIED BY',
@@ -62,17 +61,32 @@ def search_data():
         workbook = Workbook()
         sheet = workbook.active
 
+        
+
         text = ""
 
         # Variables to store the results
 
         # Project Block
-        project_block = []
+        project_block = [
+            # {
+            #     'meeting_type': '',
+            #     'meeting_date': '',
+            #     'project_names': '',
+            #     'parcel_numbers': '',
+            #     'project_locations': '',
+            #     'building_sizes': '',
+            #     'land_sizes': '',
+            #     'application_status': '',
+            #     'applicants': '',
+            #     'proposals': ''
+            # }
+        ]
 
         # After extracting the text from the PDF
 
         for page in pdf.pages:
-            text += page.extract_text()
+            text += page.extract_text() 
 
         # If the extracted text is empty, use OCR
         if not text.strip():
@@ -138,7 +152,7 @@ def search_data():
 
             project_data = {}
 
-            # Store the information in a dictionary
+            # Completar el resto del código para obtener los datos del proyecto
             
             project_data["Meeting Type"] = meeting_type
             project_data["Meeting Date"] = meeting_date
@@ -154,21 +168,31 @@ def search_data():
             project_data["Propose Zoning"] = ','.join(find_propose_zoning(project))
             project_data["Application Status"] = find_application_status(project)
             
-            # Add the dictionary to the list
+            # Paso 3: Agrega el diccionario a la lista
             project_block.append(project_data)
 
-        #Verify if project_block is empty and add an empty dictionary insteed
+        # Verificar si project_block está vacío y agregar un diccionario vacío si es necesario
         if not project_block:
             project_block.append({})
 
         # Write the results to Excel
-
         # Write headers in Excel
         for project in project_block:
             print(project)
         headers = list(project_block[0].keys())
         sheet.append(headers)
-        
+        # sheet['A2'] = meeting_type
+        # sheet['B2'] = meeting_date
+        # sheet['C2'] = '; '.join(project_names)
+        # sheet['D2'] = ', '.join(applicants)
+        # sheet['E2'] = '; '.join(project_locations)
+        # sheet['F2'] = '; '.join(parcel_numbers)
+        # sheet['G2'] = '; '.join(building_sizes)
+        # sheet['H2'] = '; '.join(land_sizes)
+        # sheet['I2'] = captura
+        # sheet['J2'] = '; '.join(existing_used)
+        # sheet['K2'] = '; '.join(propose_zoning)
+        # sheet['L2'] = application_status
         for item in project_block:
             row_data = list(item.values())
             sheet.append(row_data)
@@ -182,6 +206,27 @@ def search_data():
         # Call the function to save the data in the excel template
         save_in_template(project_block)
 
+        # Create a list with the collected data
+
+        # data = [
+        #     meeting_type,
+        #     meeting_date,
+        #     '; '.join(project_names),
+        #     '; '.join(applicants),
+        #     '; '.join(project_locations),
+        #     '; '.join(parcel_numbers),
+        #     '; '.join(building_sizes),
+        #     '; '.join(land_sizes),
+        #     '; '.join(proposals),
+        #     '; '.join(existing_used),
+        #     '; '.join(propose_zoning),
+        #     application_status,
+        # ] 
+
+        # Call the function to save the data in the excel template
+
+        #save_in_template(data, 'COPIA PLANTILLA.xlsx')
+
         # Display completion message and total execution time
         lbl_message.config(
             text=f'The search has been finished. Total time: {time.time() - start_time:.2f} segundos')
@@ -189,10 +234,29 @@ def search_data():
         # Open the Excel file after saving
         os.startfile(excel_path)
 
+    #    # Display results in the console
+    #     print(f"Meeting Type: {meeting_type}")
+    #     print(f"Meeting Date: {meeting_date}")
+    #     print(f"Project Names: {project_names}")
+    #     print(f"Applicants: {applicants}")
+    #     print(f"Project Locations: {project_locations}")
+    #     print(f"Parcel Numbers: {parcel_numbers}")
+    #     print(f"Building Sizes: {building_sizes}")
+    #     print(f"Land Sizes: {land_sizes}")
+    #     print(f"Proposals: {proposals}")
+    #     print(f"Application Status: {application_status}")
+    #     print(f"Existing / Used: {existing_used}")
+    #     print(f"Propose Zoning: {propose_zoning}")
+    #     print(f"template text {city_text}")
+    #     print("Results saved to Excel file.")
+
+    
+
     # Enable the search button after completing the task
     btn_search.config(state='normal')
 
 # Function to select a PDF file
+
 
 def select_pdf():
     global pdf_path, pdf_name, start_time, lbl_message
